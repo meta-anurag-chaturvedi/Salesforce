@@ -1,0 +1,137 @@
+public class shopping {
+    public List<Wrapperproduct> productlist{get; set;}
+    public List<Wrapperproduct> selectedProductlist{get; set;}
+    public List<PurchaseOrder__c> purchaseorderlist{get; set;}
+    public Integer x{get; set;}
+    public Boolean displayPurchaseOrder{get; set;}
+    public Boolean showadd{get; set;}
+    public Boolean showCart{get; set;}
+    public Boolean showUserCart{get; set;}
+    public Boolean SAPH{get; set;}
+    public ID ProductToDelete{get; set;}
+    public shopping() {
+      //  ApexPages.StandardSetController ssc = new ApexPages.StandardSetController(productlist);
+      //  ssc.setPageSize(10);
+      //  products=ssc.getRecords();
+        purchaseorderlist=new List<PurchaseOrder__c>();
+        //originalproduct = new List<Product2>();
+        SAPH=true;
+        showadd=true;
+        showCart=false;
+        showUserCart= false;
+        selectedProductlist= new List<Wrapperproduct>();
+        for(PurchaseOrder__c purchaseorder: [SELECT Total_Amount__c,Order_Status__c FROM PurchaseOrder__c]) {
+            purchaseorderlist.add(purchaseorder);
+        }
+        displayPurchaseOrder=false;
+        if(productlist==null) {
+            productlist= new List<Wrapperproduct>();
+            for(Product2 product:[SELECT Name,ProductCode,Quantity__c,Price_Per_Unit__c FROM Product2]) {
+                productlist.add(new Wrapperproduct(product));
+              //  originalproduct.add(product);
+            }
+        }
+    }
+    
+    public void cart() {
+        showadd=false;
+        showCart=true;
+    }    
+   
+    
+    public class Wrapperproduct {
+        public Product2 product{get;set;}
+        public boolean selected{get; set;}
+        public Integer LQuantity{get; set;}
+        public Integer OQuantity{get; set;}
+        
+        public Wrapperproduct(Product2 product) {
+            this.product=product;
+            selected=false;
+            LQuantity=product.Quantity__c.intValue();
+            OQuantity=LQuantity;
+        }
+    }
+    
+    public void addToCart() {
+       
+        if(selectedProductlist.size()>0) {
+            for(Wrapperproduct wp:selectedProductlist) {
+                for(Wrapperproduct ws:productlist) {
+                    if(wp.product.id==ws.product.id) {
+                        ws.LQuantity=ws.OQuantity;
+                    }
+                }
+            }
+        }
+        //selectedProductlist.clear();
+        for(Wrapperproduct wrapproduct:productlist) {
+            if(wrapproduct.selected==true) {
+                selectedProductlist.add(wrapproduct);
+            }
+        }
+        for(Wrapperproduct wrapproduct:selectedProductlist) {
+            wrapproduct.product.Quantity__c=1;
+        }
+        changequant();
+        Set<Wrapperproduct> setWrapp = new Set<Wrapperproduct>(selectedProductlist);
+        selectedProductlist.clear();
+        selectedProductlist.addAll(setWrapp);
+        setWrapp.clear();
+        if(selectedProductlist.size()>0) {
+             showUserCart=true;
+        }
+    }
+    
+    public void checkout() {
+        displayPurchaseOrder=true;
+        System.debug('AA gayaa ji');
+        PurchaseOrder__c po = new PurchaseOrder__c();
+        insert po;
+        List<PurchaseOrderLineItem__c> poliList = new List<PurchaseOrderLineItem__c>();
+        for(Wrapperproduct sproduct:selectedProductlist) {
+             poliList.add( new PurchaseOrderLineItem__c(PurchaseOrder__c=po.Id,Product__c=sproduct.product.id,Quantity__c=sproduct.product.Quantity__c));
+        }
+        insert polilist;
+        for(PurchaseOrder__c purchaseorder: [SELECT Total_Amount__c,Order_Status__c FROM PurchaseOrder__c WHERE Id=:po.Id]) {
+            purchaseorderlist.add(purchaseorder);
+        }
+        System.debug(purchaseorderlist.size());
+        SAPH=false;
+    }
+    
+    public void changequant() {
+        for(Wrapperproduct wp:selectedProductlist ) {
+            wp.LQuantity=wp.OQuantity-wp.product.Quantity__c.intValue();
+            if(wp.LQuantity<0) {
+                wp.LQuantity=0;
+                wp.product.Quantity__c=wp.OQuantity;
+            }
+        }
+    }
+    
+    public void deleteProduct() {
+        Integer t;
+        System.debug('Hello');
+        System.debug(ProductToDelete);
+        if(selectedProductlist.size()==1) {
+            showUserCart=false;
+        }
+        for(Wrapperproduct wp:selectedProductlist ) {
+            if(wp.product.id==ProductToDelete) {
+                for(Wrapperproduct ws:productlist ) {
+                    if(wp.product.id==ws.product.id) {
+                        System.debug(ws.LQuantity);
+                        ws.LQuantity=ws.OQuantity;
+                        System.debug(ws.OQuantity);
+                        System.debug(ws.LQuantity);
+                        break;
+                    }
+                }
+                t=selectedProductlist.indexOf(wp);
+                break;
+            }
+        }
+        selectedProductlist.remove(t);
+    }
+}
